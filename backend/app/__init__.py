@@ -27,7 +27,7 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 
-    app.config["JWT_SECRET_KEY"] = "your-secret-key"
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 
 
     db.init_app(app)
@@ -41,10 +41,10 @@ def create_app():
     from app.models.sales import SaleRecord
 
     from app.routes.auth import auth_bp
-    app.register_blueprint(auth_bp)
-
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    
     from app.routes.dashboard import dashboard_bp
-    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 
     from app.routes.account import account_bp
     app.register_blueprint(account_bp, url_prefix="/api/account")

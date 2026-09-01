@@ -61,6 +61,7 @@ def register():
         db.session.add(organisation)
         db.session.flush()
         user.organisation_id = organisation.id
+        member_role = "Lead"
 
     db.session.commit()
 

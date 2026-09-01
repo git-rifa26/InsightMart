@@ -10,8 +10,8 @@ analysis_bp = Blueprint("analysis", __name__)
 def upload_csv():
     from app.models.user import User
     from app.models.upload import Upload
-    from app.models.sale import SaleRecord
-    from app.services.csv_service import clean_sales_csv, CsvValidationError
+    from app.models.sales import SaleRecord
+    from app.services.csv_services import clean_sales_csv, CsvValidationError
     from app import db
 
     user = User.query.get(get_jwt_identity())
@@ -117,8 +117,8 @@ def list_uploads():
 def get_analysis():
     from app.models.user import User
     from app.models.upload import Upload
-    from app.models.sale import SaleRecord
-    from app.services.analytics_service import full_analysis, records_to_df
+    from app.models.sales import SaleRecord
+    from app.services.analytics import full_analysis, records_to_df
 
     user = User.query.get(get_jwt_identity())
     if not user:
@@ -158,8 +158,8 @@ def get_analysis():
 def export_report(upload_id):
     from app.models.user import User
     from app.models.upload import Upload
-    from app.services.analytics_service import full_analysis, records_to_df
-    from app.services.pdf_service import build_analysis_report
+    from app.services.analytics import full_analysis, records_to_df
+    from app.services.pdf import build_analysis_report
 
     user = User.query.get(get_jwt_identity())
     if not user:
@@ -176,7 +176,8 @@ def export_report(upload_id):
         return {"message": "You do not have access to that upload."}, 403
 
     df = records_to_df(upload.records.all()) if hasattr(upload, "records") else records_to_df(
-        __import__("app.models.sale", fromlist=["SaleRecord"]).SaleRecord.query.filter_by(upload_id=upload.id).all()
+        # __import__("app.models.sale", fromlist=["SaleRecord"]).SaleRecord.query.filter_by(upload_id=upload.id).all()
+        Upload.records
     )
     payload = full_analysis(df)
     pdf_bytes = build_analysis_report(upload, payload)
