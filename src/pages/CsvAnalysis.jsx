@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Papa from 'papaparse'
 import {
@@ -18,6 +18,7 @@ import {
   Sparkles,
   CheckCircle2,
   Loader2,
+  LayoutDashboard,
 } from 'lucide-react'
 
 import KpiCard from '@/components/KpiCard'
@@ -37,6 +38,7 @@ import {
 } from '@/components/charts'
 import { analysisApi, errorMessage } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
+import { useDataset } from '@/context/DataContext'
 import { useToast } from '@/context/ToastContext'
 import { currency, currencyCompact, number, percent } from '@/lib/formatters'
 import { EASE } from '@/lib/motion'
@@ -85,34 +87,21 @@ function PremiumLock({ children, locked, feature }) {
 
 export default function CsvAnalysis() {
   const { plan, canExport } = useAuth()
+  const { analysis: data, hasData, setAnalysis } = useDataset()
   const toast = useToast()
+  const navigate = useNavigate()
 
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [progress, setProgress] = useState(null)
   const [stage, setStage] = useState(-1)
   const [dropError, setDropError] = useState(null)
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
   const [exporting, setExporting] = useState(false)
   const resultsRef = useRef(null)
 
   const isFree = plan.id === 'free'
-
-  // Load the most recent analysis so the page is never empty on arrival.
-  useEffect(() => {
-    let cancelled = false
-    analysisApi
-      .get()
-      .then((payload) => !cancelled && setData(payload))
-      .catch((error) => !cancelled && toast.error(errorMessage(error, 'Could not load your analysis.')))
-      .finally(() => !cancelled && setLoading(false))
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const busy = progress != null || stage >= 0
 
   /** Parse a small slice locally so the user sees their columns before upload. */
   const handleSelect = (nextFile) => {
@@ -151,7 +140,7 @@ export default function CsvAnalysis() {
     setStage(-1)
 
     try {
-      await analysisApi.upload(file, setProgress)
+      const { upload } = await analysisApi.upload(file, setProgress)
       setProgress(null)
 
       // Walk the staged messages so the wait reads as real work.
@@ -162,10 +151,19 @@ export default function CsvAnalysis() {
       }
 
       const payload = await analysisApi.get({ uploadId: file.name })
-      setData(payload)
+      setAnalysis(payload, {
+        filename: file.name,
+        rows: upload?.rows ?? payload.rowsAnalysed,
+        uploadedAt: upload?.uploadedAt,
+      })
       setStage(-1)
-      toast.success(`${file.name} analysed successfully.`)
-      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setFile(null)
+      setPreview(null)
+
+      toast.success(`${file.name} analysed. Opening your dashboard.`)
+      // Upload-first flow: once the file is analysed the user goes to the
+      // dashboard. The full breakdown stays here whenever they come back.
+      navigate('/dashboard')
     } catch (error) {
       toast.error(errorMessage(error, 'That upload could not be processed.'))
       setProgress(null)
@@ -216,29 +214,41 @@ export default function CsvAnalysis() {
             CSV Analysis
           </h1>
           <p className="mt-1 text-[13.5px] text-muted">
-            Upload a sales file and read the full breakdown: trends, performers, profitability and
-            retention.
+            {hasData
+              ? 'The full breakdown of your uploaded file: trends, performers, profitability and retention.'
+              : 'Everything starts here. Upload a sales file and the dashboard and reports build from it.'}
           </p>
         </div>
 
-        <Button
-          onClick={handleExport}
-          loading={exporting}
-          icon={canExport ? FileDown : Lock}
-          variant={canExport ? 'primary' : 'secondary'}
-          size="sm"
-        >
-          Export PDF report
-        </Button>
+        {hasData && (
+          <div className="flex items-center gap-2.5">
+            <Button as={Link} to="/dashboard" size="sm" variant="secondary" icon={LayoutDashboard}>
+              View dashboard
+            </Button>
+            <Button
+              onClick={handleExport}
+              loading={exporting}
+              icon={canExport ? FileDown : Lock}
+              variant={canExport ? 'primary' : 'secondary'}
+              size="sm"
+            >
+              Export PDF report
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       {/* Upload */}
       <section className="glass rim rounded-2xl p-5 sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-[15px] font-semibold text-ink">Upload a sales CSV</h2>
+            <h2 className="text-[15px] font-semibold text-ink">
+              {hasData ? 'Upload another sales CSV' : 'Start by uploading your sales CSV'}
+            </h2>
             <p className="mt-1 text-[12.5px] text-muted">
-              Files are validated, cleaned and stored before the analytics run.
+              {hasData
+                ? 'A new file replaces the current analysis everywhere, including the dashboard.'
+                : 'Files are validated, cleaned and stored, then your dashboard is built from them.'}
             </p>
           </div>
           <Badge tone={isFree ? 'neutral' : 'brand'}>
@@ -252,7 +262,7 @@ export default function CsvAnalysis() {
           onClear={clearFile}
           progress={progress}
           error={dropError}
-          disabled={progress != null || stage >= 0}
+          disabled={busy}
         />
 
         {/* Column preview from the local parse */}
@@ -344,9 +354,10 @@ export default function CsvAnalysis() {
         </AnimatePresence>
       </section>
 
+      {hasData && (
       <div ref={resultsRef} className="scroll-mt-6 space-y-6">
         {/* Result summary bar */}
-        {data && !loading && (
+        {(
           <Reveal>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--c-hairline)/0.1)] bg-[rgb(var(--c-hairline)/0.03)] px-5 py-3.5">
               <p className="text-[13px] text-muted">
@@ -365,7 +376,6 @@ export default function CsvAnalysis() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <KpiCard
             index={0}
-            loading={loading}
             label="Revenue"
             value={k?.revenue ?? 0}
             format={(v) => currencyCompact(v)}
@@ -374,7 +384,6 @@ export default function CsvAnalysis() {
           />
           <KpiCard
             index={1}
-            loading={loading}
             label="Orders"
             value={k?.orders ?? 0}
             format={(v) => number(Math.round(v))}
@@ -383,7 +392,6 @@ export default function CsvAnalysis() {
           />
           <KpiCard
             index={2}
-            loading={loading}
             label="Avg order value"
             value={k?.aov ?? 0}
             format={(v) => currency(v)}
@@ -392,7 +400,6 @@ export default function CsvAnalysis() {
           />
           <KpiCard
             index={3}
-            loading={loading}
             label="Repeat rate"
             value={k?.repeatRate ?? 0}
             decimals={1}
@@ -402,7 +409,6 @@ export default function CsvAnalysis() {
           />
           <KpiCard
             index={4}
-            loading={loading}
             label="Profit margin"
             value={k?.margin ?? 0}
             decimals={1}
@@ -415,7 +421,6 @@ export default function CsvAnalysis() {
         {/* Sales by period */}
         <ChartCard
           index={0}
-          loading={loading}
           title="Sales by period"
           description="The same dataset grouped by month, quarter or year."
           icon={BarChart3}
@@ -441,7 +446,6 @@ export default function CsvAnalysis() {
         <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
           <ChartCard
             index={0}
-            loading={loading}
             title="Revenue and order trend"
             description="Revenue over time with order volume overlaid."
             icon={TrendingUp}
@@ -451,7 +455,6 @@ export default function CsvAnalysis() {
 
           <ChartCard
             index={1}
-            loading={loading}
             title="Share by category"
             description="Proportion of revenue per category."
             icon={PieIcon}
@@ -465,8 +468,7 @@ export default function CsvAnalysis() {
           <PremiumLock locked={isFree} feature="Order value distribution">
             <ChartCard
               index={0}
-              loading={loading}
-              title="Order value distribution"
+                title="Order value distribution"
               description="How many orders fall into each value band."
               icon={Activity}
             >
@@ -477,8 +479,7 @@ export default function CsvAnalysis() {
           <PremiumLock locked={isFree} feature="Customer retention">
             <ChartCard
               index={1}
-              loading={loading}
-              title="Retention and repeat purchase"
+                title="Retention and repeat purchase"
               description="New against returning customers, month over month."
               icon={Users}
             >
@@ -490,7 +491,6 @@ export default function CsvAnalysis() {
         {/* Top products */}
         <ChartCard
           index={0}
-          loading={loading}
           title="Top performing products"
           description="Ranked by revenue, with units sold and profit contribution."
           icon={TrendingUp}
@@ -506,7 +506,6 @@ export default function CsvAnalysis() {
         <PremiumLock locked={isFree} feature="Branch profitability">
           <ChartCard
             index={0}
-            loading={loading}
             title="Branch and regional profitability"
             description="Revenue set against cost per branch, so you can see where sales are most profitable - not just highest."
             icon={Building}
@@ -579,6 +578,7 @@ export default function CsvAnalysis() {
           </ChartCard>
         </PremiumLock>
       </div>
+      )}
     </PageTransition>
   )
 }

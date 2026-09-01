@@ -72,7 +72,7 @@ export default function Register() {
     try {
       const user = await createAccount({ ...values, accountType })
       toast.success(`Account created. Welcome, ${user.name.split(' ')[0]}.`)
-      navigate('/dashboard', { replace: true })
+      navigate('/analysis', { replace: true })
     } catch (error) {
       setFormError(error.message)
     }

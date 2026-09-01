@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   Upload,
   ArrowRight,
+  UploadCloud,
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
@@ -27,19 +28,25 @@ import { PageTransition } from '@/components/motion'
 import { RevenueLineChart, SalesBarChart, CategoryDonut } from '@/components/charts'
 import { dashboardApi, errorMessage } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
+import { useDataset } from '@/context/DataContext'
 import { useToast } from '@/context/ToastContext'
 import { DATE_RANGES } from '@/lib/constants'
 import { currency, currencyCompact, number, percent, relativeTime, fileSize } from '@/lib/formatters'
 import { EASE } from '@/lib/motion'
 
 export default function Dashboard() {
-  const { user, plan } = useAuth()
+  const { plan } = useAuth()
+  const { hasData, dataset } = useDataset()
   const toast = useToast()
   const [range, setRange] = useState('12m')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!hasData) {
+      setLoading(false)
+      return undefined
+    }
     let cancelled = false
     setLoading(true)
 
@@ -59,11 +66,49 @@ export default function Dashboard() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range])
+  }, [range, hasData])
 
   const k = data?.kpis
   const trend = data?.revenueTrend ?? []
   const maxProduct = Math.max(...(data?.topProducts ?? []).map((p) => p.revenue), 1)
+
+  // Upload-first: without an analysed file there is nothing to summarise.
+  if (!hasData) {
+    return (
+      <PageTransition>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: EASE }}
+          className="glass rim relative overflow-hidden rounded-2xl px-6 py-16"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(60% 90% at 50% 0%, rgb(var(--c-brand) / 0.12), transparent 65%)',
+            }}
+          />
+          <div className="relative mx-auto max-w-md text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[rgb(var(--c-brand)/0.13)] text-brand">
+              <UploadCloud className="h-6 w-6" strokeWidth={1.8} />
+            </span>
+            <h1 className="mt-5 font-display text-[22px] font-semibold tracking-[-0.02em] text-ink">
+              Upload a CSV to build your dashboard
+            </h1>
+            <p className="mt-2.5 text-[14px] leading-relaxed text-muted">
+              Your KPIs, revenue trend, category share and regional performance are all computed
+              from the sales file you upload. Start there and this page fills itself in.
+            </p>
+            <Button as={Link} to="/analysis" size="lg" className="mt-7" icon={UploadCloud}>
+              Go to CSV Analysis
+            </Button>
+          </div>
+        </motion.div>
+      </PageTransition>
+    )
+  }
 
   return (
     <PageTransition className="space-y-6">
@@ -79,7 +124,9 @@ export default function Dashboard() {
             Sales overview
           </h1>
           <p className="mt-1 text-[13.5px] text-muted">
-            A summary of everything uploaded to your {plan.name} account.
+            Built from{' '}
+            <span className="font-medium text-ink">{dataset?.filename}</span> on your {plan.name}{' '}
+            account.
           </p>
         </div>
 

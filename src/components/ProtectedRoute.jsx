@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext'
  *
  * An unauthenticated visitor is sent to /login with the attempted path
  * remembered, so signing in returns them where they were headed. A signed-in
- * user without the required role is sent to the dashboard rather than the
+ * user without the required role is sent to CSV Analysis rather than the
  * login screen - they are authenticated, just not permitted here.
  */
 export function ProtectedRoute({ children, roles }) {
@@ -20,7 +20,7 @@ export function ProtectedRoute({ children, roles }) {
   }
 
   if (roles && !roles.includes(role)) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/analysis" replace />
   }
 
   return children

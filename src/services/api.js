@@ -175,15 +175,24 @@ export const adminApi = {
     USE_MOCK
       ? mockApi.updateUserStatus(payload)
       : http.put(`/admin/users/${payload.userId}/status`, { status: payload.status }).then(unwrap),
-}
 
-/* ------------------------------------------------------------------ *
- * Chat sidebar
- * ------------------------------------------------------------------ */
+  updateUser: (payload) =>
+    USE_MOCK
+      ? mockApi.updateUser(payload)
+      : http.put(`/admin/users/${payload.userId}`, payload.patch).then(unwrap),
 
-export const chatApi = {
-  send: (payload) =>
-    USE_MOCK ? mockApi.sendChatMessage(payload) : http.post('/chat/message', payload).then(unwrap),
+  deleteUser: (payload) =>
+    USE_MOCK ? mockApi.deleteUser(payload) : http.delete(`/admin/users/${payload.userId}`).then(unwrap),
+
+  deleteOrganisation: (payload) =>
+    USE_MOCK
+      ? mockApi.deleteOrganisation(payload)
+      : http.delete(`/admin/organisations/${payload.orgId}`).then(unwrap),
+
+  deleteUpload: (payload) =>
+    USE_MOCK
+      ? mockApi.deleteUpload(payload)
+      : http.delete(`/admin/uploads/${payload.uploadId}`).then(unwrap),
 }
 
 export default http

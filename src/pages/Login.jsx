@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, ArrowRight, AlertCircle, UserRound, Building2, ShieldCheck, Copy, Check } from 'lucide-react'
+import {
+  Mail, Lock, ArrowRight, AlertCircle, UserRound, Building2, ShieldCheck, Users, Copy, Check,
+} from 'lucide-react'
 
 import AuthLayout from '@/components/layout/AuthLayout'
 import Input from '@/components/ui/Input'
@@ -30,8 +32,15 @@ const DEMO_LOGINS = [
     role: 'Enterprise',
     email: 'enterprise@insightmart.dev',
     icon: Building2,
-    blurb: 'Adds the Organisation page',
+    blurb: 'Team lead of an organisation',
     tone: 'text-[rgb(var(--c-violet))] bg-[rgb(var(--c-violet)/0.14)]',
+  },
+  {
+    role: 'Team member',
+    email: 'team@insightmart.dev',
+    icon: Users,
+    blurb: 'Read-only team roster',
+    tone: 'text-success bg-[rgb(var(--c-success)/0.14)]',
   },
   {
     role: 'Admin',
@@ -57,7 +66,8 @@ export default function Login() {
     formState: { errors },
   } = useForm({ defaultValues: { email: '', password: '' } })
 
-  const redirectTo = location.state?.from ?? '/dashboard'
+  // Upload-first: a fresh session starts on CSV Analysis, not the dashboard.
+  const redirectTo = location.state?.from ?? '/analysis'
 
   const onSubmit = async (values) => {
     setFormError(null)
@@ -70,7 +80,7 @@ export default function Login() {
     }
   }
 
-  /** Fill both fields, then submit so one click reaches the dashboard. */
+  /** Fill both fields, then submit so one click gets straight in. */
   const useDemo = async (account) => {
     setValue('email', account.email, { shouldValidate: true })
     setValue('password', DEMO_PASSWORD, { shouldValidate: true })
@@ -92,7 +102,7 @@ export default function Login() {
     <PageTransition>
       <AuthLayout
         title="Welcome back"
-        subtitle="Sign in to reach your dashboard, analysis and reports."
+        subtitle="Sign in, upload your sales CSV, and your dashboard builds itself."
       >
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           <AnimatePresence>
@@ -221,7 +231,7 @@ export default function Login() {
           <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--c-hairline)/0.11)] bg-[rgb(var(--c-hairline)/0.03)] px-3.5 py-2.5">
             <div className="min-w-0">
               <p className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-faint">
-                Password for all three
+                Password for all four
               </p>
               <p className="mt-0.5 font-mono text-[13.5px] font-medium text-ink">{DEMO_PASSWORD}</p>
             </div>

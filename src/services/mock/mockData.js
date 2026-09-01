@@ -274,6 +274,17 @@ export const DEMO_ACCOUNTS = [
     uploadLimit: 300,
   },
   {
+    id: 'usr_mem_01',
+    name: 'Kabir Nair',
+    email: 'team@insightmart.dev',
+    role: 'member',
+    plan: 'enterprise',
+    organisationId: 'org_01',
+    joinedAt: '2023-12-01T10:00:00.000Z',
+    uploadsThisMonth: 28,
+    uploadLimit: 300,
+  },
+  {
     id: 'usr_adm_01',
     name: 'Priya Menon',
     email: 'admin@insightmart.dev',
@@ -299,7 +310,7 @@ export const ORGANISATION = {
       id: 'mem_01',
       name: 'Vikram Shah',
       email: 'enterprise@insightmart.dev',
-      role: 'Owner',
+      role: 'Lead',
       status: 'active',
       lastActive: '2024-09-16T14:20:00.000Z',
       uploads: 42,
@@ -307,7 +318,7 @@ export const ORGANISATION = {
     {
       id: 'mem_02',
       name: 'Kabir Nair',
-      email: 'kabir.nair@northwind.co',
+      email: 'team@insightmart.dev',
       role: 'Analyst',
       status: 'active',
       lastActive: '2024-09-16T09:12:00.000Z',
@@ -531,21 +542,4 @@ export const PLATFORM_ORGS = [
     uploads: 17,
     createdAt: '2024-06-21T10:00:00.000Z',
   },
-]
-
-export const CHAT_SEED = [
-  {
-    id: 'msg_1',
-    author: 'agent',
-    text: 'Welcome to InsightMart support. Ask me about uploading a CSV, reading a chart, or exporting your report.',
-    at: '2024-09-16T09:00:00.000Z',
-  },
-]
-
-export const CHAT_REPLIES = [
-  'Your CSV needs at least a date, product and revenue column. A cost column unlocks the profitability analysis.',
-  'Head to CSV Analysis, drop the file in, and the parser will show you a preview before anything is saved.',
-  'PDF export is available on Pro and Enterprise. You will find it in the top right of the analysis results.',
-  'Repeat purchase rate counts customers with more than one order in the uploaded period.',
-  'Branch profitability compares revenue against cost per branch, so you can see where margin is strongest.',
 ]

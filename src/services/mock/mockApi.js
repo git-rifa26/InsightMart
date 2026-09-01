@@ -14,7 +14,6 @@ import {
   PLATFORM_USERS,
   PLATFORM_ORGS,
   SALES_RECORDS,
-  CHAT_REPLIES,
   computeKpis,
   monthlyTrend,
   quarterlyTrend,
@@ -271,25 +270,42 @@ async function updateUserStatus({ userId, status }) {
   return { user: PLATFORM_USERS[index] }
 }
 
-/* ------------------------------------------------------------------ *
- * Chat sidebar
- * ------------------------------------------------------------------ */
+async function updateUser({ userId, patch }) {
+  await latency(560)
+  const index = PLATFORM_USERS.findIndex((u) => u.id === userId)
+  if (index < 0) throw apiError(404, 'That user no longer exists.')
 
-let replyIndex = 0
+  const clash = PLATFORM_USERS.some(
+    (u) => u.id !== userId && u.email.toLowerCase() === String(patch.email).toLowerCase(),
+  )
+  if (clash) throw apiError(409, 'Another account already uses that email address.')
 
-async function sendChatMessage({ text }) {
-  await latency(900)
-  const reply = CHAT_REPLIES[replyIndex % CHAT_REPLIES.length]
-  replyIndex += 1
+  PLATFORM_USERS[index] = { ...PLATFORM_USERS[index], ...patch }
+  return { user: PLATFORM_USERS[index] }
+}
 
-  return {
-    message: {
-      id: `msg_${Date.now()}`,
-      author: 'agent',
-      text: text?.trim() ? reply : 'Could you tell me a little more about what you need?',
-      at: new Date().toISOString(),
-    },
-  }
+async function deleteUser({ userId }) {
+  await latency(520)
+  const index = PLATFORM_USERS.findIndex((u) => u.id === userId)
+  if (index < 0) throw apiError(404, 'That user no longer exists.')
+  const [removed] = PLATFORM_USERS.splice(index, 1)
+  return { user: removed }
+}
+
+async function deleteOrganisation({ orgId }) {
+  await latency(540)
+  const index = PLATFORM_ORGS.findIndex((o) => o.id === orgId)
+  if (index < 0) throw apiError(404, 'That organisation no longer exists.')
+  const [removed] = PLATFORM_ORGS.splice(index, 1)
+  return { organisation: removed }
+}
+
+async function deleteUpload({ uploadId }) {
+  await latency(480)
+  const index = UPLOADS.findIndex((u) => u.id === uploadId)
+  if (index < 0) throw apiError(404, 'That upload no longer exists.')
+  const [removed] = UPLOADS.splice(index, 1)
+  return { upload: removed }
 }
 
 /* ------------------------------------------------------------------ *
@@ -319,7 +335,10 @@ export const mockApi = {
   removeMember,
   getAdminOverview,
   updateUserStatus,
-  sendChatMessage,
+  updateUser,
+  deleteUser,
+  deleteOrganisation,
+  deleteUpload,
   changePlan,
 }
 

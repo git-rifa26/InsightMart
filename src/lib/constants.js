@@ -16,9 +16,21 @@ export const ROLES = {
 
 export const ROLE_LABEL = {
   individual: 'Individual',
-  enterprise: 'Enterprise',
+  enterprise: 'Team lead',
   member: 'Team member',
   admin: 'Administrator',
+}
+
+/**
+ * Roles inside an organisation. The lead manages the team; members and
+ * viewers only read it.
+ */
+export const ORG_ROLES = ['Lead', 'Analyst', 'Viewer']
+
+export const ORG_ROLE_HINT = {
+  Lead: 'Manages the team, invites and removes members, and controls roles.',
+  Analyst: 'Uploads files and runs analysis on the organisation dataset.',
+  Viewer: 'Reads dashboards and analysis. Cannot upload or manage anyone.',
 }
 
 const ALL_USERS = [ROLES.INDIVIDUAL, ROLES.ENTERPRISE, ROLES.MEMBER, ROLES.ADMIN]

@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Menu, X, Search, Bell, MessageSquare } from 'lucide-react'
+import { Menu, X, Search, Bell } from 'lucide-react'
 
 import Sidebar from '@/components/Sidebar'
-import ChatSidebar, { ChatLauncher } from '@/components/ChatSidebar'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import Badge from '@/components/ui/Badge'
 import { useAuth } from '@/context/AuthContext'
@@ -15,20 +14,17 @@ import { SPRING } from '@/lib/motion'
 
 /**
  * Signed-in shell: navigation rail on the left, a slim top bar, the routed
- * page, and the support panel docked on wide screens.
+ * page, and the routed content.
  */
 export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
-  const { user, plan, role } = useAuth()
+  const { user, plan } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
 
   useLockBodyScroll(drawerOpen)
 
   const current = APP_NAV.find((item) => item.to === location.pathname)
-  const showChat = ['/dashboard', '/analysis'].includes(location.pathname)
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas">
@@ -122,17 +118,6 @@ export default function AppShell() {
               <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
             </button>
 
-            {showChat && (
-              <button
-                type="button"
-                onClick={() => setChatOpen(true)}
-                aria-label="Open support"
-                className="grid h-9 w-9 place-items-center rounded-lg border border-[rgb(var(--c-hairline)/0.12)] text-muted transition-colors hover:text-ink xl:hidden"
-              >
-                <MessageSquare className="h-4 w-4" strokeWidth={1.9} />
-              </button>
-            )}
-
             <ThemeToggle />
           </div>
         </header>
@@ -143,17 +128,8 @@ export default function AppShell() {
               <Outlet />
             </div>
           </main>
-
-          {showChat && <ChatSidebar docked />}
         </div>
       </div>
-
-      {showChat && (
-        <>
-          <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)} />
-          {!chatOpen && <ChatLauncher onClick={() => setChatOpen(true)} />}
-        </>
-      )}
     </div>
   )
 }
