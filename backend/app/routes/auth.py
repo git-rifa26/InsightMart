@@ -1,5 +1,6 @@
 # handles /auth/register
 from flask import Blueprint, request
+from flask_jwt_extended import create_access_token
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -105,7 +106,7 @@ def register_enterprise():
     }, 201
 
 
-@auth_bp.route("/auth/login/indivisual", methods=["POST"])
+@auth_bp.route("/auth/login/individual", methods=["POST"])
 def login():
 
     from app.models.user import User
@@ -137,8 +138,16 @@ def login():
             "error": "Invalid email or password"
         }, 401
 
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={
+        "role": user.role
+        }
+    )
+
     return {
         "message": "Login successful",
+        "access_token": access_token,
         "user_id": user.id,
         "name": user.name,
         "email": user.email,
@@ -178,8 +187,16 @@ def login_org():
             "error": "Invalid email or password"
         }, 401
 
+    access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={
+            "role": user.role
+            }
+        )
+
     return {
         "message": "Login successful",
+        "access_token": access_token,
         "user_id": user.id,
         "name": user.name,
         "email": user.email,
@@ -219,8 +236,16 @@ def login_admin():
             "error": "Invalid email or password"
         }, 401
 
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={
+        "role": user.role
+        }
+    )
+
     return {
         "message": "Login successful",
+        "access_token": access_token,
         "user_id": user.id,
         "name": user.name,
         "email": user.email,
