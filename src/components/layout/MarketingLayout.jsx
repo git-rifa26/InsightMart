@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router-dom'
 import Navbar from '@/components/Navbar'
 import Footer from './Footer'
+import RouteTransition from './RouteTransition'
 
 /** Public shell: floating header, page content, marketing footer. */
 export default function MarketingLayout() {
@@ -8,7 +8,7 @@ export default function MarketingLayout() {
     <div className="relative min-h-screen bg-canvas">
       <Navbar />
       <main>
-        <Outlet />
+        <RouteTransition />
       </main>
       <Footer />
     </div>

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LogOut, ChevronsLeft, Sparkles } from 'lucide-react'
+import { LogOut, ChevronsLeft, Sparkles, ShieldCheck } from 'lucide-react'
 
 import Logo, { LogoMark } from '@/components/ui/Logo'
 import Button from '@/components/ui/Button'
@@ -96,6 +96,24 @@ export function Sidebar({ collapsed, onToggleCollapse, onNavigate, className }) 
           </NavLink>
         ))}
       </nav>
+
+      {/* Admins reach their console from here - it has its own chrome. */}
+      {!collapsed && role === 'admin' && (
+        <div className="mx-3 mb-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={ShieldCheck}
+            className="w-full"
+            onClick={() => {
+              onNavigate?.()
+              navigate('/admin')
+            }}
+          >
+            Admin console
+          </Button>
+        </div>
+      )}
 
       {/* Upgrade nudge, only while there is somewhere to upgrade to. */}
       {!collapsed && plan.id === 'free' && (

@@ -48,7 +48,6 @@ export const APP_NAV = [
     icon: Building2,
     roles: [ROLES.ENTERPRISE, ROLES.MEMBER, ROLES.ADMIN],
   },
-  { to: '/admin', label: 'Admin', icon: ShieldCheck, roles: [ROLES.ADMIN] },
   { to: '/account', label: 'My Account', icon: UserRound, roles: ALL_USERS },
   { to: '/plans', label: 'Plans', icon: CreditCard, roles: ALL_USERS },
 ]

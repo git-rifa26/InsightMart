@@ -1,188 +1,10 @@
-# InsightMart
+# InsightMart — Frontend
 
-Sales Analytics & Reporting Platform — upload a sales CSV and get revenue trends, top performers,
+Sales Analytics & Reporting Platform. Upload a sales CSV and get revenue trends, top performers,
 branch profitability, retention and an exportable PDF report.
 
-A decoupled application: a **React** single-page frontend, a **Flask** REST API, and a **MySQL**
-database. This repository holds the frontend.
-
----
-
-## System Architecture
-
-Three classes of user reach the same React application. It calls one Flask REST API over JSON with a
-JWT, and that API owns all business logic and the only database connection.
-
-```mermaid
-flowchart TB
-    subgraph users ["Users"]
-        direction LR
-        U1["Individual<br/><i>single user</i>"]
-        U2["Enterprise<br/><i>owner + team</i>"]
-        U3["Admin<br/><i>platform-wide</i>"]
-    end
-
-    subgraph frontend ["Frontend · React SPA"]
-        SPA["React 18 + Vite<br/>Router · Context · Recharts · Tailwind"]
-        GW["services/api.js<br/><i>single gateway</i>"]
-        MOCK[("mock backend<br/>VITE_USE_MOCK=true")]
-        SPA --> GW
-        GW -.->|mock mode| MOCK
-    end
-
-    subgraph backend ["Backend · Flask REST API"]
-        direction TB
-        AUTH["Auth & Account<br/>/auth · /account"]
-        FEAT["Feature Services<br/>/dashboard · /organisation · /admin"]
-        CSV["CSV & Analytics<br/>/analysis · Pandas · ReportLab"]
-        API["Flask<br/>JWT · CORS · Marshmallow"]
-        AUTH --> API
-        FEAT --> API
-        CSV --> API
-    end
-
-    DB[("MySQL 8<br/>SQLAlchemy + PyMySQL")]
-
-    U1 --> SPA
-    U2 --> SPA
-    U3 --> SPA
-    GW -->|JSON + Bearer JWT| AUTH
-    GW -->|JSON + Bearer JWT| FEAT
-    GW -->|JSON + Bearer JWT| CSV
-    API -->|SQLAlchemy ORM| DB
-```
-
-### Boundaries
-
-| Layer | Responsibility |
-|---|---|
-| **React SPA** | Presentation, routing and session state. Role gating here is for navigation only — the API re-enforces it. |
-| **Service gateway** | The one place that talks HTTP. Components call named functions, never Axios directly. |
-| **Flask REST API** | All business logic, validation, authentication and analytics. |
-| **MySQL** | Reachable only through SQLAlchemy inside Flask. The frontend never touches it. |
-
-### Frontend composition
-
-```mermaid
-flowchart TB
-    M["main.jsx → App.jsx"]
-    M --> T["ThemeProvider<br/><i>dark / light tokens</i>"]
-    M --> A["AuthProvider<br/><i>user · JWT · role · plan</i>"]
-    M --> N["ToastProvider<br/><i>notification queue</i>"]
-    T --> R
-    A --> R
-    N --> R
-    R["AppRoutes<br/>AnimatePresence + ProtectedRoute"]
-    R --> L1["MarketingLayout<br/><i>Navbar + Footer</i>"]
-    R --> L2["AuthLayout<br/><i>split screen</i>"]
-    R --> L3["AppShell<br/><i>Sidebar + Chat panel</i>"]
-    L1 --> P["Pages"]
-    L2 --> P
-    L3 --> P
-    P --> G["services/api.js"]
-```
-
----
-
-## Data Flow
-
-### End-to-end journey
-
-```mermaid
-flowchart LR
-    S1["1 · Sign up<br/>or log in"] --> S2["2 · Organisation<br/>setup"]
-    S2 --> S3["3 · CSV<br/>upload"]
-    S3 --> S4["4 · Validation<br/>& parsing"]
-    S4 --> S5["5 · Cleaning<br/>& storage"]
-    S5 --> S6["6 · Analytics<br/>computation"]
-    S6 --> S7["7 · Visualisation"]
-    S7 --> S8["8 · Export<br/>& support"]
-    S1 -.->|individual accounts<br/>skip step 2| S3
-```
-
-| # | Stage | What happens |
-|---|---|---|
-| 1 | **Sign up / log in** | Register as Individual or Enterprise. Flask hashes the password and returns a JWT, which the auth context stores. |
-| 2 | **Organisation setup** | Enterprise accounts create an organisation and invite team members. Individual accounts skip this entirely. |
-| 3 | **CSV upload** | The user drops a sales file on the CSV Analysis page. Columns are previewed client-side before anything is sent. |
-| 4 | **Validation & parsing** | Flask checks the file type and required columns, then reads it with Pandas. |
-| 5 | **Cleaning & storage** | Missing values are handled, records are normalised, and rows are written to MySQL through SQLAlchemy. |
-| 6 | **Analytics computation** | The analytics service computes revenue, top products and regions, profitability, retention and order metrics. |
-| 7 | **Visualisation** | Dashboard and CSV Analysis render the results as KPI cards plus bar, line, histogram and donut charts. |
-| 8 | **Export & support** | The user exports a ReportLab PDF or asks the chat sidebar for help. Admin oversees all of it at any point. |
-
-### Upload request, end to end
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant P as CsvAnalysis page
-    participant G as services/api.js
-    participant F as Flask API
-    participant D as MySQL
-
-    U->>P: drops sales.csv
-    P->>P: Papa Parse preview (first 6 rows)
-    U->>P: Run analysis
-    P->>G: analysisApi.upload(file, onProgress)
-    G->>F: POST /analysis/upload (multipart + JWT)
-    F->>F: validate schema · Pandas parse · clean
-    F->>D: INSERT sales records
-    F-->>G: 200 { upload }
-    P->>G: analysisApi.get({ uploadId })
-    G->>F: GET /analysis
-    F->>D: SELECT + aggregate
-    F-->>G: 200 { kpis, salesByPeriod, branchProfitability, … }
-    G-->>P: analysis payload
-    P->>U: KPI cards + charts render
-```
-
-### The gateway switch
-
-Every call follows the same path. `services/api.js` decides at call time whether to reach Flask or
-the in-browser mock, and both return the identical response shape.
-
-```mermaid
-flowchart LR
-    PG["Page<br/>useEffect"] --> GW["services/api.js"]
-    GW -->|VITE_USE_MOCK=true| MK["mockApi.js<br/><i>seeded data + latency</i>"]
-    GW -->|VITE_USE_MOCK=false| AX["Axios + JWT"] --> FL["Flask REST"] --> DB[("MySQL")]
-    MK --> ST["setState → render"]
-    FL --> ST
-```
-
-This is why the whole frontend is reviewable before the backend exists. To connect the real API:
-
-```bash
-# .env
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_USE_MOCK=false
-```
-
-No component or page changes — only the gateway resolves differently.
-
----
-
-## Routes and access
-
-| Route | Page | Individual | Enterprise | Team | Admin |
-|---|---|:--:|:--:|:--:|:--:|
-| `/` | Home | ✓ | ✓ | ✓ | ✓ |
-| `/plans` | Feature plans | ✓ | ✓ | ✓ | ✓ |
-| `/login` `/register` | Authentication | ✓ | ✓ | ✓ | ✓ |
-| `/dashboard` | Dashboard | ✓ | ✓ | ✓ | ✓ |
-| `/analysis` | CSV Analysis | ✓ | ✓ | ✓ | ✓ |
-| `/account` | My Account | ✓ | ✓ | ✓ | ✓ |
-| `/organisation` | Organisation | — | ✓ | ✓ | ✓ |
-| `/admin` | Admin | — | — | — | ✓ |
-
-`ProtectedRoute` sends an unauthenticated visitor to `/login` with the attempted path remembered. A
-signed-in user without the required role goes to `/dashboard` instead — they are authenticated, just
-not permitted there.
-
----
-
-## Getting started
+This is the **React single-page frontend**. It talks to a Flask REST API over JSON with a JWT, and
+ships with an in-browser mock backend so the whole application runs without Flask.
 
 ```bash
 npm install
@@ -190,36 +12,285 @@ cp .env.example .env
 npm run dev          # http://localhost:5173
 ```
 
-### Demo accounts
+Then sign in with any [demo account](#demo-accounts) — the login page lists them as one-click cards.
 
-The mock backend seeds three accounts, one per role. All share the password **`demo1234`**, and they
-are listed as one-click cards on the login page.
+---
 
-| Role | Email | Unlocks |
-|---|---|---|
-| Individual | `individual@insightmart.dev` | Dashboard, CSV Analysis, My Account, Plans |
-| Enterprise | `enterprise@insightmart.dev` | The above, plus Organisation |
-| Admin | `admin@insightmart.dev` | Everything, including Admin |
+## Contents
 
-### Scripts
+- [Getting started](#getting-started)
+- [Demo accounts](#demo-accounts)
+- [The upload-first flow](#the-upload-first-flow)
+- [Architecture](#architecture)
+- [Routes and access](#routes-and-access)
+- [Project structure](#project-structure)
+- [Design system](#design-system)
+- [Motion](#motion)
+- [Connecting the Flask backend](#connecting-the-flask-backend)
+
+---
+
+## Getting started
+
+**Requires Node 20 or newer.**
 
 | Command | Does |
 |---|---|
+| `npm install` | Install dependencies |
 | `npm run dev` | Vite dev server on port 5173 |
 | `npm run build` | Production bundle into `dist/` |
 | `npm run preview` | Serve the built bundle |
+
+### Environment
+
+`.env` holds two variables. Copy `.env.example` and leave the defaults to run against the mock.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:5000/api` | Base URL of the Flask REST API |
+| `VITE_USE_MOCK` | `true` | When true, an in-browser mock serves every request |
+
+---
+
+## Demo accounts
+
+The mock backend seeds four accounts, one per role. All share the password **`demo1234`**.
+
+| Role | Email | What it unlocks |
+|---|---|---|
+| Individual | `individual@insightmart.dev` | CSV Analysis, Dashboard, My Account, Plans |
+| Team lead | `enterprise@insightmart.dev` | The above, plus Organisation with management controls |
+| Team member | `team@insightmart.dev` | The above, but the team roster is **read-only** |
+| Admin | `admin@insightmart.dev` | Everything, plus the Admin console |
+
+Sign in as **Individual** to see the Free-tier experience: the order-value histogram, retention chart
+and branch profitability are locked behind an upgrade prompt, and PDF export is unavailable.
+
+---
+
+## The upload-first flow
+
+Nothing exists until a CSV is analysed. Signing in lands on **CSV Analysis**, not the dashboard.
+
+```mermaid
+flowchart LR
+    L["Sign in"] --> A["CSV Analysis<br/><i>upload + preview</i>"]
+    A --> R["Parse · clean · compute"]
+    R --> D["Dashboard<br/><i>built from your file</i>"]
+    D -.->|upload another| A
+```
+
+1. Drop a CSV. Papa Parse shows the detected columns and first rows **before** anything is sent.
+2. "Run analysis" uploads it, then walks a staged sequence: validate → parse → clean → compute.
+3. On success the analysis is stored in `DataContext` and you land on the Dashboard.
+4. The Dashboard reads `hasData`. With no analysed file it shows an upload prompt instead of empty
+   charts. The full breakdown stays on CSV Analysis whenever you go back.
+
+---
+
+## Architecture
+
+Three layout shells, one service gateway. Components never import Axios.
+
+```mermaid
+flowchart TB
+    M["main.jsx → App.jsx"]
+    M --> P["ThemeProvider · AuthProvider<br/>ToastProvider · DataProvider"]
+    P --> R["AppRoutes"]
+    R --> L1["MarketingLayout<br/><i>Navbar + Footer</i>"]
+    R --> L2["AuthLayout<br/><i>split screen</i>"]
+    R --> L3["AppShell<br/><i>sidebar rail</i>"]
+    R --> L4["AdminLayout<br/><i>top navbar, no sidebar</i>"]
+    L1 --> PG["Pages"]
+    L3 --> PG
+    L4 --> PG
+    PG --> G["services/api.js"]
+    G -->|VITE_USE_MOCK=true| MK["mockApi.js<br/><i>seeded data + latency</i>"]
+    G -->|VITE_USE_MOCK=false| AX["Axios + Bearer JWT"] --> F["Flask REST API"]
+```
+
+### The three shells
+
+| Shell | Used by | Chrome |
+|---|---|---|
+| `MarketingLayout` | Home, Plans | Floating navbar that condenses on scroll, footer |
+| `AuthLayout` | Login, Register | Split screen: form left, animated brand panel right |
+| `AppShell` | Dashboard, CSV Analysis, Organisation, My Account | Collapsible sidebar rail + slim top bar |
+| `AdminLayout` | Admin console | **Top navbar, no sidebar** — deliberately a separate surface |
+
+### Page transitions
+
+Each layout owns its own transition via `RouteTransition`, which wraps only its `<Outlet/>`:
+
+```jsx
+<AnimatePresence mode="wait" initial={false}>
+  <Outlet key={location.pathname} />
+</AnimatePresence>
+```
+
+The layout stays mounted across navigation, so sidebar state and fetched layout data survive.
+Keying the whole `<Routes>` element instead would remount the shell on every click **and stall
+browser back/forward** — that was a real bug, fixed by scoping the key to the outlet.
+
+### Contexts
+
+| Context | Holds |
+|---|---|
+| `AuthContext` | User, JWT, role, plan, and the derived permissions pages gate on |
+| `DataContext` | The analysis from the most recent upload, and `hasData` |
+| `ThemeContext` | `dark` / `light` / `system`, resolved before first paint |
+| `ToastContext` | Animated notification queue |
+
+---
+
+## Routes and access
+
+| Route | Page | Individual | Team lead | Team member | Admin |
+|---|---|:--:|:--:|:--:|:--:|
+| `/` | Home | ✓ | ✓ | ✓ | ✓ |
+| `/plans` | Plans | ✓ | ✓ | ✓ | ✓ |
+| `/login` `/register` | Authentication | ✓ | ✓ | ✓ | ✓ |
+| `/analysis` | CSV Analysis | ✓ | ✓ | ✓ | ✓ |
+| `/dashboard` | Dashboard | ✓ | ✓ | ✓ | ✓ |
+| `/account` | My Account | ✓ | ✓ | ✓ | ✓ |
+| `/organisation` | Organisation | — | ✓ manage | ✓ read-only | ✓ |
+| `/admin` | Console overview | — | — | — | ✓ |
+| `/admin/users` | Users — edit, suspend, delete | — | — | — | ✓ |
+| `/admin/organisations` | Organisations — delete | — | — | — | ✓ |
+| `/admin/uploads` | Uploads & data — delete | — | — | — | ✓ |
+
+`ProtectedRoute` sends an unauthenticated visitor to `/login` with the attempted path remembered, so
+signing in returns them where they were headed. A signed-in user without the required role goes to
+`/analysis` instead — they are authenticated, just not permitted there.
+
+Role gating here is for **navigation only**. The API re-enforces it.
+
+### Organisation: lead vs member
+
+The same page renders two ways. A team lead gets invite, role-change and remove controls plus the
+seat meter. A team member sees the identical roster marked *Read only*, with a note to ask their
+lead for changes.
+
+---
+
+## Project structure
+
+```
+src/
+├── main.jsx  App.jsx              entry and provider tree
+├── styles/index.css               design tokens, glass/rim primitives, utilities
+├── lib/
+│   ├── cn.js                      class merge helper
+│   ├── motion.js                  easings, springs, shared variants
+│   ├── formatters.js              currency, compact numbers, percent, dates
+│   └── constants.js               roles, nav, plans, plan matrix
+├── hooks/                         useCountUp, useTilt, useMediaQuery,
+│                                  useLocalStorage, useOnClickOutside
+├── context/                       Auth, Data, Theme, Toast
+├── services/
+│   ├── api.js                     the single gateway (Axios + mock switch)
+│   └── mock/
+│       ├── mockData.js            seeded dataset — 260 sales records, users, orgs
+│       └── mockApi.js             latency-simulated resolver per endpoint
+├── routes/AppRoutes.jsx           route table
+├── components/
+│   ├── Navbar  Sidebar  KpiCard  ChartCard  ProtectedRoute
+│   ├── TeamMembers.jsx            org roster, lead and member variants
+│   ├── ConfirmDialog.jsx          blocking confirm for destructive admin actions
+│   ├── home/                      Hero, HeroMockup, FeatureBento, HowItWorks,
+│   │                              StatsBand, LogoMarquee
+│   ├── layout/                    MarketingLayout, AuthLayout, AppShell,
+│   │                              AdminLayout, RouteTransition, Footer, ScrollToTop
+│   ├── motion/                    Reveal, Stagger, Spotlight, MagneticButton,
+│   │                              AuroraBackground, GridBackdrop, PageTransition, CountUp
+│   ├── charts/                    RevenueLineChart, SalesBarChart, CategoryDonut,
+│   │                              OrderHistogram, RetentionChart, Sparkline, chartTheme
+│   └── ui/                        Button, Card, Badge, Input, Select, Tabs, Table,
+│                                  Modal, Skeleton, Progress, EmptyState, FileDropzone,
+│                                  ThemeToggle, Logo
+└── pages/
+    ├── Home  Login  Register  Plans  Dashboard
+    ├── CsvAnalysis  Organisation  MyAccount  NotFound
+    └── admin/                     AdminOverview, AdminUsers,
+                                   AdminOrganisations, AdminUploads, AdminSection
+```
+
+---
+
+## Design system
+
+Defined once in `styles/index.css` and `tailwind.config.js`, then composed everywhere.
+
+**Colour** — CSS custom properties holding raw RGB channels on `:root`, overridden under
+`[data-theme="dark"]`. Tailwind consumes them through a wrapper so opacity modifiers
+(`bg-surface/60`) still work and every surface themes for free. A boot script in `index.html`
+resolves the stored preference before first paint, so nothing flashes.
+
+| Token group | Purpose |
+|---|---|
+| `canvas` `surface` `elevated` `sunken` | Background depth layers |
+| `ink` `muted` `faint` | Text hierarchy |
+| `brand` `violet` `cyan` | Accent ramp — CTAs, chart strokes, focus rings |
+| `success` `warn` `danger` | KPI deltas, statuses, validation, margin badges |
+| `hairline` | All borders and dividers, applied at low alpha |
+
+**Type** — Sora for display headings, Inter for UI, JetBrains Mono for identifiers. Headings use a
+fluid `clamp()` scale. Every figure uses tabular numerals so digits do not jitter while counting up.
+
+**Surfaces** — `.glass` for the frosted panels, `.rim` for the 1px light-catching gradient border,
+`.text-gradient` for the animated brand headline.
+
+Charts read their palette from the same tokens via `components/charts/chartTheme.js`, so they
+re-theme with the rest of the app. All four documented chart types are covered: bar, line,
+histogram and donut, plus a stacked area for retention and inline sparklines.
+
+---
+
+## Motion
+
+| Behaviour | Where |
+|---|---|
+| Route transition — fade and rise | Every page change, per layout |
+| Scroll reveal and stagger | Marketing sections, cards, table rows |
+| Shared-layout indicator | Sidebar pill, admin navbar pill, tabs, segmented controls |
+| Count-up figures | KPI cards, stats band, admin tiles |
+| Self-drawing SVG paths | Hero mockup, auth panel chart |
+| Cursor parallax and spotlight | Hero product window, feature and KPI cards |
+| Magnetic buttons | Primary calls to action |
+| Staged progress | CSV upload: validate → parse → clean → compute |
+
+Every animated component checks `prefers-reduced-motion`. When set, decorative motion is removed,
+parallax stops, and count-up figures snap to their final values. Nothing becomes unusable and no
+information is lost.
+
+The interface contains **no emoji** — all icons are `lucide-react`.
+
+---
+
+## Connecting the Flask backend
+
+1. Start Flask with CORS enabled for the Vite origin.
+2. Set `VITE_USE_MOCK=false` in `.env` and point `VITE_API_BASE_URL` at the Flask host.
+3. Restart the dev server.
+
+No component or page changes — only `services/api.js` resolves differently. The endpoints it expects:
+
+| Group | Functions | Endpoint |
+|---|---|---|
+| `authApi` | login, register, forgotPassword, logout | `/auth/*` |
+| `accountApi` | getProfile, updateProfile, changePassword, changePlan | `/account/*` |
+| `dashboardApi` | get | `/dashboard` |
+| `analysisApi` | get, listUploads, upload, exportReport | `/analysis/*` |
+| `organisationApi` | get, invite, updateRole, remove | `/organisation/*` |
+| `adminApi` | overview, updateUser, setUserStatus, deleteUser, deleteOrganisation, deleteUpload | `/admin/*` |
 
 ---
 
 ## Tech stack
 
-**Frontend** — React 18 · Vite 5 · React Router 6 · Axios · Recharts · React Hook Form ·
-Tailwind CSS 3 · Framer Motion · Lucide · Papa Parse
+React 18 · Vite 5 · React Router 6 · Axios · Recharts · React Hook Form · Tailwind CSS 3 ·
+Framer Motion · Lucide · Papa Parse
 
-**Backend** — Flask · Flask-SQLAlchemy · Flask-Migrate · Flask-JWT-Extended · Flask-CORS · Pandas ·
-Marshmallow · ReportLab · Gunicorn
-
-**Database** — MySQL 8 via PyMySQL
-
-Full documentation, including the page-by-page breakdown and design system, is in
+The backend lives in [`backend/`](./backend). Full system documentation, including the end-to-end
+data flow and page-by-page breakdown, is in
 [`InsightMart_Frontend_Documentation.pdf`](./InsightMart_Frontend_Documentation.pdf).

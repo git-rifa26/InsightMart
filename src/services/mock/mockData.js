@@ -433,16 +433,6 @@ export const UPLOADS = [
 export const PLATFORM_USERS = [
   ...DEMO_ACCOUNTS.map((u) => ({ ...u, status: 'active' })),
   {
-    id: 'usr_04',
-    name: 'Kabir Nair',
-    email: 'kabir.nair@northwind.co',
-    role: 'member',
-    plan: 'enterprise',
-    status: 'active',
-    joinedAt: '2023-12-01T10:00:00.000Z',
-    uploadsThisMonth: 28,
-  },
-  {
     id: 'usr_05',
     name: 'Sara Iqbal',
     email: 'sara.iqbal@northwind.co',

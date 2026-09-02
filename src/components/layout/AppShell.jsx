@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, X, Search, Bell } from 'lucide-react'
 
 import Sidebar from '@/components/Sidebar'
+import RouteTransition from './RouteTransition'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import Badge from '@/components/ui/Badge'
 import { useAuth } from '@/context/AuthContext'
@@ -125,7 +126,7 @@ export default function AppShell() {
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
-              <Outlet />
+              <RouteTransition />
             </div>
           </main>
         </div>

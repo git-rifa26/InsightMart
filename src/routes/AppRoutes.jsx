@@ -1,8 +1,8 @@
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 import MarketingLayout from '@/components/layout/MarketingLayout'
 import AppShell from '@/components/layout/AppShell'
+import AdminLayout from '@/components/layout/AdminLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { ROLES } from '@/lib/constants'
 
@@ -13,63 +13,73 @@ import Plans from '@/pages/Plans'
 import Dashboard from '@/pages/Dashboard'
 import CsvAnalysis from '@/pages/CsvAnalysis'
 import Organisation from '@/pages/Organisation'
-import Admin from '@/pages/Admin'
 import MyAccount from '@/pages/MyAccount'
 import NotFound from '@/pages/NotFound'
 
+import AdminOverview from '@/pages/admin/AdminOverview'
+import AdminUsers from '@/pages/admin/AdminUsers'
+import AdminOrganisations from '@/pages/admin/AdminOrganisations'
+import AdminUploads from '@/pages/admin/AdminUploads'
+
 /**
- * The route table. AnimatePresence keys on the pathname so each page can
- * play its exit animation before the next one enters.
+ * The route table.
+ *
+ * Page transitions are owned by each layout, around its own <Outlet/>, so a
+ * layout stays mounted across navigation. Keying the whole <Routes> element
+ * instead would remount the shell on every click and stall browser back.
  */
 export function AppRoutes() {
-  const location = useLocation()
-
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
-        {/* Public marketing surface */}
-        <Route element={<MarketingLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/plans" element={<Plans />} />
-        </Route>
+    <Routes>
+      {/* Public marketing surface */}
+      <Route element={<MarketingLayout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/plans" element={<Plans />} />
+      </Route>
 
-        {/* Authentication - full-bleed, no marketing chrome */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+      {/* Authentication - full-bleed, no marketing chrome */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-        {/* Signed-in application */}
+      {/* Signed-in application - sidebar shell */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/analysis" element={<CsvAnalysis />} />
+        <Route path="/account" element={<MyAccount />} />
         <Route
+          path="/organisation"
           element={
-            <ProtectedRoute>
-              <AppShell />
+            <ProtectedRoute roles={[ROLES.ENTERPRISE, ROLES.MEMBER, ROLES.ADMIN]}>
+              <Organisation />
             </ProtectedRoute>
           }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/analysis" element={<CsvAnalysis />} />
-          <Route path="/account" element={<MyAccount />} />
-          <Route
-            path="/organisation"
-            element={
-              <ProtectedRoute roles={[ROLES.ENTERPRISE, ROLES.MEMBER, ROLES.ADMIN]}>
-                <Organisation />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute roles={[ROLES.ADMIN]}>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
-        </Route>
+        />
+      </Route>
 
-        <Route path="/home" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AnimatePresence>
+      {/* Admin console - its own top-bar chrome, no sidebar */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute roles={[ROLES.ADMIN]}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="organisations" element={<AdminOrganisations />} />
+        <Route path="uploads" element={<AdminUploads />} />
+      </Route>
+
+      <Route path="/home" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   )
 }
 
