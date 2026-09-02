@@ -4,6 +4,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/cn'
 import { EASE } from '@/lib/motion'
 
+// iuytfdfghjkl
+
 /**
  * Frame around a chart: title, optional description and toolbar, and a
  * skeleton while the data resolves. Charts themselves stay presentational.
