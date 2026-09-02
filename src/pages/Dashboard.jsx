@@ -152,7 +152,7 @@ export default function Dashboard() {
           label="Total revenue"
           value={k?.revenue ?? 0}
           format={(v) => currencyCompact(v)}
-          delta={k?.deltas.revenue}
+          delta={k?.deltas?.revenue}
           icon={IndianRupee}
           trend={trend}
         />
@@ -162,7 +162,7 @@ export default function Dashboard() {
           label="Orders"
           value={k?.orders ?? 0}
           format={(v) => number(Math.round(v))}
-          delta={k?.deltas.orders}
+          delta={k?.deltas?.orders}
           icon={ShoppingCart}
           trend={trend}
         />
@@ -172,7 +172,7 @@ export default function Dashboard() {
           label="Average order value"
           value={k?.aov ?? 0}
           format={(v) => currency(v)}
-          delta={k?.deltas.aov}
+          delta={k?.deltas?.aov}
           icon={Percent}
           trend={trend}
         />
@@ -182,7 +182,7 @@ export default function Dashboard() {
           label="Customers"
           value={k?.customers ?? 0}
           format={(v) => number(Math.round(v))}
-          delta={k?.deltas.customers}
+          delta={k?.deltas?.customers}
           icon={Users}
           trend={trend}
         />

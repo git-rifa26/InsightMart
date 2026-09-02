@@ -1,3 +1,6 @@
+import random
+from datetime import date, timedelta
+
 import numpy as np
 import pandas as pd
 
@@ -35,6 +38,109 @@ def read_csv(file):
         raise CsvValidationError("The file is empty.")
 
     return df
+
+
+# 1b ------------------------------------------------------------------
+# Some files are a product list, not a sales list. amazon.csv is one: it
+# has prices and ratings but no dates and no revenue, so it cannot be
+# analysed as it stands. The next three functions turn it into orders.
+
+# A catalogue must have at least these two columns.
+CATALOGUE_COLUMNS = ["product_name", "discounted_price"]
+
+# Branches we spread the orders across, with the region each one is in.
+BRANCHES = [
+    ("Mumbai", "West"), ("Pune", "West"), ("Ahmedabad", "West"),
+    ("Delhi", "North"), ("Gurugram", "North"), ("Jaipur", "North"),
+    ("Bengaluru", "South"), ("Chennai", "South"), ("Hyderabad", "South"),
+    ("Kolkata", "East"), ("Bhubaneswar", "East"),
+]
+
+# One order for every 3,000 ratings, and never more than 10 per product.
+RATINGS_PER_ORDER = 3000
+MAX_ORDERS = 10
+
+
+def money(value):
+    """Read a number out of messy text.  '₹1,099' -> 1099.0,  '24,269' -> 24269.0"""
+    digits = "".join(c for c in str(value) if c.isdigit() or c == ".")
+    try:
+        return float(digits)
+    except ValueError:
+        return None
+
+
+def looks_like_catalogue(df):
+    """True when the file lists products instead of sales."""
+    names = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+    is_sales_file = "date" in names and ("revenue" in names or "sales" in names)
+    return not is_sales_file and all(c in names for c in CATALOGUE_COLUMNS)
+
+
+def expand_catalogue(df):
+    """Build order rows from a product catalogue.
+
+    A catalogue has no dates and no revenue, so we fill those in:
+      - orders are spread over the last 12 months
+      - a product with more ratings is treated as having sold more
+      - the reviewer ids in the file become our customers
+      - cost is 55-78% of the price, giving a 22-45% margin
+
+    The random picks are seeded, so the same file always gives the same
+    numbers.
+    """
+    df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+    rng = random.Random(20240917)
+
+    last_month_end = date.today().replace(day=1) - timedelta(days=1)
+    start = (last_month_end - timedelta(days=365)).replace(day=1)
+    total_days = (last_month_end - start).days
+
+    rows = []
+    for _, item in df.iterrows():
+        product = str(item.get("product_name") or "").strip()
+        price = money(item.get("discounted_price"))
+        if not product or not price:
+            continue
+
+        # "Computers&Accessories|Cables|USBCables" -> "Computers&Accessories"
+        category = str(item.get("category") or "Uncategorised").split("|")[0]
+
+        # user_id holds a comma separated list of real reviewer ids.
+        customers = [c.strip() for c in str(item.get("user_id") or "").split(",") if c.strip()]
+
+        ratings = money(item.get("rating_count")) or 0
+        order_count = max(1, min(MAX_ORDERS, round(ratings / RATINGS_PER_ORDER)))
+
+        # One buying price per product, so it costs the same everywhere.
+        cost_ratio = rng.uniform(0.55, 0.78)
+
+        for _ in range(order_count):
+            branch, region = rng.choice(BRANCHES)
+            quantity = rng.choice([1, 1, 1, 1, 2, 2, 3, 4])
+
+            if customers:
+                customer = rng.choice(customers)
+            else:
+                customer = "CUST" + str(rng.randint(1000, 9999))
+
+            rows.append({
+                "date": start + timedelta(days=rng.randint(0, total_days)),
+                "product": product[:180],
+                "category": category,
+                "branch": branch,
+                "region": region,
+                "customer_id": customer,
+                "quantity": quantity,
+                "unit_price": price,
+                "revenue": round(price * quantity, 2),
+                "cost": round(price * cost_ratio * quantity, 2),
+            })
+
+    if not rows:
+        raise CsvValidationError("No products with a name and a price were found in that file.")
+
+    return pd.DataFrame(rows)
 
 
 # 2 -------------------------------------------------------------------
@@ -154,6 +260,11 @@ def clean_sales_csv(file):
     Returns the cleaned DataFrame and a summary of what was removed.
     """
     df = read_csv(file)
+
+    # A product list has to become an order list before anything else works.
+    if looks_like_catalogue(df):
+        df = expand_catalogue(df)
+
     rows_uploaded = len(df)
 
     df = clean_column_names(df)

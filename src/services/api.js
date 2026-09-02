@@ -109,12 +109,14 @@ export const accountApi = {
 
 export const dashboardApi = {
   get: (params) =>
-    USE_MOCK ? mockApi.getDashboard(params) : http.get('/dashboard', { params }).then(unwrap),
+    // The trailing slash matters: Flask registers "/api/dashboard/" and
+    // 308-redirects the un-slashed form, which a CORS preflight rejects.
+    USE_MOCK ? mockApi.getDashboard(params) : http.get('/dashboard/', { params }).then(unwrap),
 }
 
 export const analysisApi = {
   get: (params) =>
-    USE_MOCK ? mockApi.getAnalysis(params) : http.get('/analysis', { params }).then(unwrap),
+    USE_MOCK ? mockApi.getAnalysis(params) : http.get('/analysis/', { params }).then(unwrap),
 
   listUploads: () => (USE_MOCK ? mockApi.getUploads() : http.get('/analysis/uploads').then(unwrap)),
 

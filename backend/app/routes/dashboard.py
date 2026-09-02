@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -12,48 +12,42 @@ def get_dashboard():
     from app.models.upload import Upload
     from app.models.sales import SaleRecord
     from app.services.analytics import (
-        records_to_df, compute_kpis, monthly_trend, top_products,
-        category_share, region_share, branch_profitability,
+        compute_kpis, monthly_trend, top_products, category_share,
+        region_share, records_to_df, filter_by_range, branch_profitability,
     )
 
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-
+    user = User.query.get(get_jwt_identity())
     if not user:
         return {"message": "User not found"}, 404
 
-    organisation = None
+    organisation = Organisation.query.get(user.organisation_id) if user.organisation_id else None
+    query = Upload.query.filter_by(status="processed")
     if user.organisation_id:
-        organisation = Organisation.query.get(user.organisation_id)
-
-    # Pull every processed upload belonging to this user (or their whole
-    # organisation, if they're on a team), same scoping rule used on
-    # GET /api/analysis when no uploadId is given.
-    upload_query = Upload.query.filter_by(status="processed")
-    if user.organisation_id:
-        upload_query = upload_query.filter_by(organisation_id=user.organisation_id)
+        query = query.filter_by(organisation_id=user.organisation_id)
     else:
-        upload_query = upload_query.filter_by(uploaded_by=user.id)
+        query = query.filter_by(uploaded_by=user.id)
 
-    uploads = upload_query.order_by(Upload.uploaded_at.desc()).all()
-    upload_ids = [u.id for u in uploads]
-
+    uploads = query.order_by(Upload.uploaded_at.desc()).all()
+    upload_ids = [upload.id for upload in uploads]
     records = (
         SaleRecord.query.filter(SaleRecord.upload_id.in_(upload_ids)).all()
         if upload_ids else []
     )
-    df = records_to_df(records)
+    date_range = request.args.get("range", "12m")
+    df = filter_by_range(records_to_df(records), date_range)
 
-    recent_uploads = [
-        {
-            "id": u.id,
-            "filename": u.filename,
-            "rows": u.rows,
-            "status": u.status,
-            "uploadedAt": u.uploaded_at.isoformat() if u.uploaded_at else None,
-        }
-        for u in uploads[:5]
-    ]
+    recent_uploads = []
+    for upload in uploads[:5]:
+        uploader = User.query.get(upload.uploaded_by)
+        recent_uploads.append({
+            "id": upload.id,
+            "filename": upload.filename,
+            "rows": upload.rows,
+            "size": upload.size,
+            "status": upload.status,
+            "uploadedBy": uploader.name if uploader else "Unknown",
+            "uploadedAt": upload.uploaded_at.isoformat() if upload.uploaded_at else None,
+        })
 
     return {
         "user": {
@@ -64,9 +58,10 @@ def get_dashboard():
             "plan": user.plan,
         },
         "organisation": {"id": organisation.id, "name": organisation.name} if organisation else None,
+        "range": date_range,
         "kpis": compute_kpis(df),
         "revenueTrend": monthly_trend(df),
-        "topProducts": top_products(df),
+        "topProducts": top_products(df, 5),
         "categoryShare": category_share(df),
         "regionShare": region_share(df),
         "branchProfitability": branch_profitability(df),

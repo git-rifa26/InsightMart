@@ -87,7 +87,7 @@ function PremiumLock({ children, locked, feature }) {
 
 export default function CsvAnalysis() {
   const { plan, canExport } = useAuth()
-  const { analysis: data, hasData, setAnalysis } = useDataset()
+  const { analysis: data, dataset, hasData, setAnalysis } = useDataset()
   const toast = useToast()
   const navigate = useNavigate()
 
@@ -150,7 +150,9 @@ export default function CsvAnalysis() {
         await new Promise((resolve) => setTimeout(resolve, 520))
       }
 
-      const payload = await analysisApi.get({ uploadId: file.name })
+      // Analyse the row the backend just created, by its id. Sending the
+      // filename here made Flask look up an upload that does not exist.
+      const payload = await analysisApi.get({ uploadId: upload?.id })
       setAnalysis(payload, {
         filename: file.name,
         rows: upload?.rows ?? payload.rowsAnalysed,
@@ -363,7 +365,9 @@ export default function CsvAnalysis() {
               <p className="text-[13px] text-muted">
                 Analysing{' '}
                 <span className="font-medium text-ink">{number(data.rowsAnalysed)} records</span> from{' '}
-                <span className="font-mono text-[12.5px] text-ink">{data.uploadId}</span>
+                <span className="font-mono text-[12.5px] text-ink">
+                  {dataset?.filename ?? `upload #${data.uploadId}`}
+                </span>
               </p>
               <Badge tone={data.hasCostData ? 'success' : 'warn'}>
                 {data.hasCostData ? 'Cost data present' : 'No cost data'}
@@ -379,7 +383,7 @@ export default function CsvAnalysis() {
             label="Revenue"
             value={k?.revenue ?? 0}
             format={(v) => currencyCompact(v)}
-            delta={k?.deltas.revenue}
+            delta={k?.deltas?.revenue}
             icon={IndianRupee}
           />
           <KpiCard
@@ -387,7 +391,7 @@ export default function CsvAnalysis() {
             label="Orders"
             value={k?.orders ?? 0}
             format={(v) => number(Math.round(v))}
-            delta={k?.deltas.orders}
+            delta={k?.deltas?.orders}
             icon={ShoppingCart}
           />
           <KpiCard
@@ -395,7 +399,7 @@ export default function CsvAnalysis() {
             label="Avg order value"
             value={k?.aov ?? 0}
             format={(v) => currency(v)}
-            delta={k?.deltas.aov}
+            delta={k?.deltas?.aov}
             icon={Receipt}
           />
           <KpiCard
@@ -404,7 +408,7 @@ export default function CsvAnalysis() {
             value={k?.repeatRate ?? 0}
             decimals={1}
             format={(v) => percent(v)}
-            delta={k?.deltas.repeatRate}
+            delta={k?.deltas?.repeatRate}
             icon={Repeat}
           />
           <KpiCard
@@ -413,7 +417,7 @@ export default function CsvAnalysis() {
             value={k?.margin ?? 0}
             decimals={1}
             format={(v) => percent(v)}
-            delta={k?.deltas.margin}
+            delta={k?.deltas?.margin}
             icon={TrendingUp}
           />
         </div>
