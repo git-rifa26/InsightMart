@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-JWT-Extended
+Flask-CORS
+PyMySQL
+python-dotenv
+pandas
+numpy
+marshmallow
+Flask-Marshmallow
+reportlab
