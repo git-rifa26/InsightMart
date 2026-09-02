@@ -1,4 +1,4 @@
-# InsightMart — Frontend
+# InsightMart — Frontend Implementation
 
 Sales Analytics & Reporting Platform. Upload a sales CSV and get revenue trends, top performers,
 branch profitability, retention and an exportable PDF report.
@@ -279,7 +279,7 @@ No component or page changes — only `services/api.js` resolves differently. Th
 |---|---|---|
 | `authApi` | login, register, forgotPassword, logout | `/auth/*` |
 | `accountApi` | getProfile, updateProfile, changePassword, changePlan | `/account/*` |
-| `dashboardApi` | get | `/dashboard` |
+| `dashboardApi` | get | `/dashboard/` |
 | `analysisApi` | get, listUploads, upload, exportReport | `/analysis/*` |
 | `organisationApi` | get, invite, updateRole, remove | `/organisation/*` |
 | `adminApi` | overview, updateUser, setUserStatus, deleteUser, deleteOrganisation, deleteUpload | `/admin/*` |
@@ -291,6 +291,7 @@ No component or page changes — only `services/api.js` resolves differently. Th
 React 18 · Vite 5 · React Router 6 · Axios · Recharts · React Hook Form · Tailwind CSS 3 ·
 Framer Motion · Lucide · Papa Parse
 
-The backend lives in [`backend/`](./backend). Full system documentation, including the end-to-end
-data flow and page-by-page breakdown, is in
+The backend lives in [`backend/`](./backend). For the whole system — setup, the MySQL schema, the
+CSV pipeline and the full API reference — see [README.md](./README.md). The original page-by-page
+design brief is in
 [`InsightMart_Frontend_Documentation.pdf`](./InsightMart_Frontend_Documentation.pdf).
