@@ -32,7 +32,7 @@
     --hairline-alpha: 0.09;
     --glass: 255 255 255;
     --glass-alpha: 0.72;
-    --aurora-alpha: 0.4;
+    --aurora-alpha: 0.26;
   }
 
   [data-theme='dark'] {
@@ -59,7 +59,7 @@
     --hairline-alpha: 0.09;
     --glass: 255 255 255;
     --glass-alpha: 0.035;
-    --aurora-alpha: 0.55;
+    --aurora-alpha: 0.3;
   }
 
   * {
