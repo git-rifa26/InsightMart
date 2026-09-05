@@ -33,7 +33,13 @@ def create_app():
     db.init_app(app)
     jwt = JWTManager(app)
 
-    CORS(app, resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "http://localhost:5173")}})
+    # expose_headers lets the browser read Content-Disposition, so the PDF
+    # export can use the filename we send instead of a generic one.
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "http://localhost:5173")}},
+        expose_headers=["Content-Disposition"],
+    )
 
     from app.models.user import User
     from app.models.organisation import Organisation

@@ -5,6 +5,16 @@ from flask_jwt_extended import create_access_token
 auth_bp = Blueprint("auth", __name__)
 
 def user_payload(user):
+    """The user object the React app stores and shows on My Account."""
+    from app.models.organisation import Organisation
+    from app.models.user import User
+
+    organisation = None
+    seats_used = 1  # an account with no team still occupies its own seat
+    if user.organisation_id:
+        organisation = Organisation.query.get(user.organisation_id)
+        seats_used = User.query.filter_by(organisation_id=user.organisation_id).count()
+
     return {
         "id": user.id,
         "name": user.name,
@@ -13,8 +23,16 @@ def user_payload(user):
         "plan": user.plan,
         "status": user.status,
         "organisationId": user.organisation_id,
-        "uploadsThisMonth": user.uploads_this_month,
-        "uploadLimit": user.upload_limit,
+        # My Account shows the real team name instead of a placeholder.
+        "organisationName": organisation.name if organisation else None,
+        "memberRole": user.member_role,
+        # The "Seats used" meter on My Account reads these two.
+        "seatsUsed": seats_used,
+        "seatLimit": organisation.seat_limit if organisation else None,
+        "uploadsThisMonth": user.uploads_this_month or 0,
+        "uploadLimit": user.upload_limit or 0,
+        # "Member since" on My Account reads this.
+        "joinedAt": user.created_at.isoformat() if user.created_at else None,
     }
 
 @auth_bp.route("/register", methods=["POST"])

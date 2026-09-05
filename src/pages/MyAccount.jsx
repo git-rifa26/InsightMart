@@ -126,7 +126,7 @@ function ProfileTab() {
                 Organisation
               </dt>
               <dd className="text-[12.5px] font-medium text-ink">
-                {user.organisationName ?? 'Northwind Retail Group'}
+                {user.organisationName ?? '—'}
               </dd>
             </div>
           )}
@@ -283,8 +283,8 @@ function SubscriptionTab() {
           <UsageMeter label="CSV uploads this month" used={uploadsUsed} limit={uploadLimit} />
           <UsageMeter
             label="Seats used"
-            used={plan.id === 'enterprise' ? 7 : 1}
-            limit={plan.limits.seats}
+            used={user?.seatsUsed ?? 1}
+            limit={user?.seatLimit ?? plan.limits.seats}
             unit="seats"
           />
         </div>

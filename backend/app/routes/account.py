@@ -1,6 +1,9 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+# One shared builder, so every route returns the same user shape.
+from app.routes.auth import user_payload
+
 account_bp = Blueprint("account", __name__)
 
 
@@ -13,19 +16,7 @@ def get_profile():
     if not user:
         return {"message": "User not found"}, 404
 
-    return {
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role,
-            "plan": user.plan,
-            "status": user.status,
-            "organisationId": user.organisation_id,
-            "uploadsThisMonth": user.uploads_this_month,
-            "uploadLimit": user.upload_limit,
-        }
-    }, 200
+    return {"user": user_payload(user)}, 200
 
 
 @account_bp.route("/profile", methods=["PUT"])
@@ -52,19 +43,7 @@ def update_profile():
 
     db.session.commit()
 
-    return {
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role,
-            "plan": user.plan,
-            "status": user.status,
-            "organisationId": user.organisation_id,
-            "uploadsThisMonth": user.uploads_this_month,
-            "uploadLimit": user.upload_limit,
-        }
-    }, 200
+    return {"user": user_payload(user)}, 200
 
 
 @account_bp.route("/password", methods=["PUT"])
@@ -112,16 +91,4 @@ def change_plan():
     user.plan = plan_id
     db.session.commit()
 
-    return {
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role,
-            "plan": user.plan,
-            "status": user.status,
-            "organisationId": user.organisation_id,
-            "uploadsThisMonth": user.uploads_this_month,
-            "uploadLimit": user.upload_limit,
-        }
-    }, 200
+    return {"user": user_payload(user)}, 200

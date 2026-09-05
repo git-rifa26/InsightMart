@@ -22,6 +22,16 @@ import { chartColors, axisProps, CHART_MARGIN } from './chartTheme'
 import { useTheme } from '@/context/ThemeContext'
 import { currencyCompact, currency, number } from '@/lib/formatters'
 
+/**
+ * Recharts throws "data is not iterable" and takes the whole page down if it
+ * is handed anything other than an array - an old payload in localStorage, a
+ * half-loaded response, an error body. A chart with nothing to draw should
+ * just draw nothing.
+ */
+function asArray(data) {
+  return Array.isArray(data) ? data : []
+}
+
 /** Re-resolves palette tokens whenever the theme flips. */
 function usePalette() {
   const { resolved } = useTheme()
@@ -32,8 +42,9 @@ function usePalette() {
  * Line / area - revenue and order trends over time
  * ------------------------------------------------------------------ */
 
-export function RevenueLineChart({ data, height = 280, showOrders = false, animationBegin = 0 }) {
+export function RevenueLineChart({ data: rows, height = 280, showOrders = false, animationBegin = 0 }) {
   const c = usePalette()
+  const data = asArray(rows)
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -94,7 +105,7 @@ export function RevenueLineChart({ data, height = 280, showOrders = false, anima
  * ------------------------------------------------------------------ */
 
 export function SalesBarChart({
-  data,
+  data: rows,
   dataKey = 'revenue',
   height = 280,
   layout = 'vertical',
@@ -103,6 +114,7 @@ export function SalesBarChart({
   secondKey,
 }) {
   const c = usePalette()
+  const data = asArray(rows)
   const horizontal = layout === 'horizontal'
 
   return (
@@ -183,9 +195,10 @@ export function SalesBarChart({
  * Donut - share of sales by category or region
  * ------------------------------------------------------------------ */
 
-export function CategoryDonut({ data, height = 280, dataKey = 'revenue', animationBegin = 0 }) {
+export function CategoryDonut({ data: rows, height = 280, dataKey = 'revenue', animationBegin = 0 }) {
   const c = usePalette()
-  const total = data.reduce((sum, row) => sum + row[dataKey], 0)
+  const data = asArray(rows)
+  const total = data.reduce((sum, row) => sum + (row[dataKey] ?? 0), 0)
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -222,8 +235,9 @@ export function CategoryDonut({ data, height = 280, dataKey = 'revenue', animati
  * Histogram - distribution of order values
  * ------------------------------------------------------------------ */
 
-export function OrderHistogram({ data, height = 260, animationBegin = 0 }) {
+export function OrderHistogram({ data: rows, height = 260, animationBegin = 0 }) {
   const c = usePalette()
+  const data = asArray(rows)
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -258,8 +272,9 @@ export function OrderHistogram({ data, height = 260, animationBegin = 0 }) {
  * Retention - new vs returning customers
  * ------------------------------------------------------------------ */
 
-export function RetentionChart({ data, height = 260, animationBegin = 0 }) {
+export function RetentionChart({ data: rows, height = 260, animationBegin = 0 }) {
   const c = usePalette()
+  const data = asArray(rows)
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -307,8 +322,9 @@ export function RetentionChart({ data, height = 260, animationBegin = 0 }) {
 }
 
 /** Tiny inline trend used inside KPI cards. */
-export function Sparkline({ data, color, height = 40 }) {
+export function Sparkline({ data: rows, color, height = 40 }) {
   const c = usePalette()
+  const data = asArray(rows)
   const stroke = color ?? c.brand
 
   return (

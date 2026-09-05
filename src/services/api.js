@@ -60,6 +60,26 @@ export function errorMessage(error, fallback = 'Something went wrong. Please try
 
 const unwrap = (response) => response.data
 
+/** Pull the download name Flask sent, e.g. attachment; filename=report.pdf */
+function filenameFromResponse(response, fallback) {
+  const header = response.headers?.['content-disposition'] ?? ''
+  const match = header.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+  return match ? decodeURIComponent(match[1]) : fallback
+}
+
+/** Hand a downloaded blob to the browser so it actually lands in Downloads. */
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  // Give the browser a moment to start the write before dropping the URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 /* ------------------------------------------------------------------ *
  * Auth
  * ------------------------------------------------------------------ */
@@ -141,7 +161,13 @@ export const analysisApi = {
     // ReportLab returns a binary PDF, so this one bypasses the JSON unwrap.
     return http
       .get(`/analysis/${uploadId}/report`, { responseType: 'blob' })
-      .then((response) => ({ blob: response.data, filename: 'insightmart-analysis.pdf' }))
+      .then((response) => {
+        const filename = filenameFromResponse(response, 'insightmart-analysis.pdf')
+        // Fetching the blob is not enough - the browser only writes a file
+        // when something clicks a download link for it.
+        saveBlob(response.data, filename)
+        return { blob: response.data, filename }
+      })
   },
 }
 
